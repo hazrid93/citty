@@ -18,7 +18,7 @@ export function parseArgs<T extends ArgsDef = ArgsDef>(
   const args = resolveArgs(argsDef);
 
   for (const arg of args) {
-    if (arg.type === "positional") {
+    if (arg.type === "positional" || arg.type === "multiPositional") {
       continue;
     }
     if (arg.type === "string" || arg.type === "enum") {
@@ -27,7 +27,7 @@ export function parseArgs<T extends ArgsDef = ArgsDef>(
       parseOptions.boolean.push(arg.name);
     }
     if (arg.default !== undefined) {
-      parseOptions.default[arg.name] = arg.default;
+      parseOptions.default[arg.name] = arg.default as string | boolean;
     }
     if (arg.alias) {
       parseOptions.alias[arg.name] = arg.alias;
@@ -60,7 +60,21 @@ export function parseArgs<T extends ArgsDef = ArgsDef>(
   });
 
   for (const [, arg] of args.entries()) {
-    if (arg.type === "positional") {
+    if (arg.type === "multiPositional") {
+      if (positionalArguments.length > 0) {
+        parsedArgsProxy[arg.name] = [...positionalArguments];
+        positionalArguments.length = 0;
+      } else if (arg.default !== undefined) {
+        parsedArgsProxy[arg.name] = arg.default;
+      } else if (arg.required === true) {
+        throw new CLIError(
+          `Missing required positional argument: ${arg.name.toUpperCase()}`,
+          "EARG",
+        );
+      } else {
+        parsedArgsProxy[arg.name] = [];
+      }
+    } else if (arg.type === "positional") {
       const nextPositionalArgument = positionalArguments.shift();
       if (nextPositionalArgument !== undefined) {
         parsedArgsProxy[arg.name] = nextPositionalArgument;
